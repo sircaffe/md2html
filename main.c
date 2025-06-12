@@ -12,27 +12,33 @@ typedef struct {
 typedef struct {
     Line *lines;
     size_t count;
+    char *file_path;
 } Buffer;
 
 enum Token_Type {
-    HASH = 0,
+    STRING = 0,
+    H1,
+    H2,
+    H3,
+    H4,
+    H5,
+    H6,
     ASTERISK,
     MINUS,
     PLUS,
-    STRING
 };
 
 typedef struct {
     enum Token_Type type;
     char *within;
+    size_t count;
 } Token;
 
 typedef struct {
     Token *tokens;
-    size_t count;
 } Lexer;
 
-// TODO: Leaks memory. Shouldn't be much of a problem for now, but do not neglect
+// TODO: fix memory leaks
 void buffer_append_line(Buffer *buffer, char *line) {
     size_t len = strlen(line);
 
@@ -76,52 +82,74 @@ bool read_entire_file(Buffer *buffer, char *file_path) {
 
         buffer_append_line(buffer, tmp);
     }
+    buffer->file_path = file_path;
 
 	fclose(f);
     return true;
 }
 
-// typedef struct {
-//     enum Token_Type type;
-//     char *within;
-// } Token;
-// 
-// typedef struct {
-//     Token *tokens;
-//     size_t count;
-// } Lexer;
-
 void mdlexer_init(Lexer *lexer) {
     lexer->tokens = malloc(sizeof(Token));
+    lexer->tokens->count = 0;
 }
 
 void mdlexer_append_token(Lexer *lexer, enum Token_Type type, char *within) {
-
+    lexer->tokens = realloc(lexer->tokens, (lexer->tokens->count * sizeof(Token)) + sizeof(Token));
+    if (lexer->tokens == NULL) {
+        fprintf(stderr, "ERROR: Could not append token to lexer\n");
+        exit(1);
+    }
+    lexer->tokens[lexer->tokens->count].type = type;
+    lexer->tokens[lexer->tokens->count].within = malloc(sizeof(char) * strlen(within));
+    strcpy(lexer->tokens[lexer->tokens->count].within, within);
 }
 
+
 void mdlexer_parse_buffer(Lexer *lexer, Buffer *buffer) {
+    printf("<!DOCTYPE html>\n");
+    printf("<html>\n");
+    printf("    <head>\n");
+    printf("    </head>\n");
+    printf("    </body>\n");
+
     for (size_t line = 0; line < buffer->count; ++line) {
         char *line_start = buffer->lines[line].content;
         size_t line_length = buffer->lines[line].length;
 
         size_t cursor = 0;
-        
+       
         while (cursor < line_length) {
             switch (line_start[cursor]) {
                 case '#':
                     for (size_t i = 1; i < (line_length - cursor); ++i) {
                         if (line_start[cursor + i] == ' ') {
-                            printf("line %zu:%zu: HEADER %zu\n", line, cursor + i, i);
+                            // TODO: refactor when newlines into buffer bug has been fixed
+                            size_t within_length = line_length - (cursor + i);
+                            char *within = &line_start[cursor + i + 1];
+                            within[within_length - 2] = '\0';
+
+                            printf("        <h%zu>%s</h%zu>\n", i, within, i);
+
+                            mdlexer_append_token(lexer, i, within);
+                            lexer->tokens->count += 1;
                             cursor += i;
                             break;
                         }
                     }
                     break;
+                case '-':
+                case '+':
+                case '*':
+                    printf("%s:%zu:%zu: error: `%c` not yet supported\n", buffer->file_path, line + 1, cursor + 1, line_start[cursor]);
+                    break;
                 default:
+
             }
             cursor += 1;
         }
     }
+    printf("    </body>\n");
+    printf("</html>\n");
 }
 
 int main(int argc, char **argv) {
@@ -146,7 +174,9 @@ int main(int argc, char **argv) {
     mdlexer_parse_buffer(&lexer, &buffer);
     
     // PRINT TOKENS FOR DEBUGGING
-    //for (int i = 0; i < 
+    //for (size_t i = 0; i < lexer.tokens->count; ++i) {
+    //    printf("TOKEN: H%u = %s\n", lexer.tokens[i].type, lexer.tokens[i].within);
+    //}
 
     return 0;
 }
