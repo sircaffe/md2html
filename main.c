@@ -14,6 +14,24 @@ typedef struct {
     size_t count;
 } Buffer;
 
+enum Token_Type {
+    HASH = 0,
+    ASTERISK,
+    MINUS,
+    PLUS,
+    STRING
+};
+
+typedef struct {
+    enum Token_Type type;
+    char *within;
+} Token;
+
+typedef struct {
+    Token *tokens;
+    size_t count;
+} Lexer;
+
 // TODO: Leaks memory. Shouldn't be much of a problem for now, but do not neglect
 void buffer_append_line(Buffer *buffer, char *line) {
     size_t len = strlen(line);
@@ -38,6 +56,7 @@ bool read_entire_file(Buffer *buffer, char *file_path) {
 
     size_t lines = 0;
     char cursor;
+    const size_t MAX_LINE_LEN = 256;
     
     // count lines
     // possibly use as pre-processor
@@ -48,15 +67,61 @@ bool read_entire_file(Buffer *buffer, char *file_path) {
     }
     rewind(f);
     
-    char tmp[256];
+    char tmp[MAX_LINE_LEN];
+    if (lines > MAX_LINE_LEN) {
+        fprintf(stderr, "ERROR: Exceded max line length: %zu bytes\n", MAX_LINE_LEN);
+    }
     for (size_t i = 0; i < lines; ++i) {
-        fgets(tmp, 256, f);
+        fgets(tmp, MAX_LINE_LEN, f);
 
         buffer_append_line(buffer, tmp);
     }
 
 	fclose(f);
     return true;
+}
+
+// typedef struct {
+//     enum Token_Type type;
+//     char *within;
+// } Token;
+// 
+// typedef struct {
+//     Token *tokens;
+//     size_t count;
+// } Lexer;
+
+void mdlexer_init(Lexer *lexer) {
+    lexer->tokens = malloc(sizeof(Token));
+}
+
+void mdlexer_append_token(Lexer *lexer, enum Token_Type type, char *within) {
+
+}
+
+void mdlexer_parse_buffer(Lexer *lexer, Buffer *buffer) {
+    for (size_t line = 0; line < buffer->count; ++line) {
+        char *line_start = buffer->lines[line].content;
+        size_t line_length = buffer->lines[line].length;
+
+        size_t cursor = 0;
+        
+        while (cursor < line_length) {
+            switch (line_start[cursor]) {
+                case '#':
+                    for (size_t i = 1; i < (line_length - cursor); ++i) {
+                        if (line_start[cursor + i] == ' ') {
+                            printf("line %zu:%zu: HEADER %zu\n", line, cursor + i, i);
+                            cursor += i;
+                            break;
+                        }
+                    }
+                    break;
+                default:
+            }
+            cursor += 1;
+        }
+    }
 }
 
 int main(int argc, char **argv) {
@@ -68,16 +133,21 @@ int main(int argc, char **argv) {
 
     char *file_path = argv[1];
 
-    Buffer buff = {0};
-    if (!read_entire_file(&buff, file_path)) {
+    Buffer buffer = {0};
+
+    if (!read_entire_file(&buffer, file_path)) {
         fprintf(stderr, "ERROR: Could not find file: %s\n", file_path);
         fprintf(stderr, "Usage: %s <path-to-file>\n", argv[0]);
         return 1;
     }
+
+    Lexer lexer = {0};
+    mdlexer_init(&lexer);
+    mdlexer_parse_buffer(&lexer, &buffer);
     
-    for (int i = 0; i < buff.count; ++i) {
-        printf("%s", buff.lines[i].content);
-    }
+    // PRINT TOKENS FOR DEBUGGING
+    //for (int i = 0; i < 
+
     return 0;
 }
 
