@@ -1,5 +1,5 @@
-main: main.c
-	cc main.c -o main
+md2html: main.c
+	cc main.c -o md2html
 
 clean:
-	rm main
+	rm md2html

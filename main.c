@@ -5,8 +5,12 @@
 #include <stdint.h>
 
 typedef struct {
-    char **line;
-    size_t *line_len;
+    char *content;
+    size_t length;
+} Line;
+
+typedef struct {
+    Line *lines;
     size_t count;
 } Buffer;
 
@@ -14,15 +18,16 @@ typedef struct {
 void buffer_append_line(Buffer *buffer, char *line) {
     size_t len = strlen(line);
 
-    buffer->line = realloc(buffer->line, buffer->count + 1);
-    buffer->line[buffer->count] = malloc(sizeof(char) * len);
-    buffer->line_len = realloc(buffer->line_len, buffer->count + 1);
-    if (buffer->line == NULL || buffer->line[buffer->count] == NULL) {
+    buffer->lines = realloc(buffer->lines, sizeof(Line) * (buffer->count + 1));
+    buffer->lines[buffer->count].content = malloc(sizeof(char) * len);
+
+    if (buffer->lines == NULL || buffer->lines[buffer->count].content == NULL) {
         fprintf(stderr, "ERROR: Could not allocate `Buffer`\n");
+        exit(1);
     }
 
-    memcpy(buffer->line[buffer->count], line, len);
-    buffer->line_len[buffer->count] = len;
+    memcpy(buffer->lines[buffer->count].content, line, len);
+    buffer->lines[buffer->count].length = len;
     buffer->count += 1;
 }
 
@@ -71,7 +76,7 @@ int main(int argc, char **argv) {
     }
     
     for (int i = 0; i < buff.count; ++i) {
-        printf("%s", buff.line[i]);
+        printf("%s", buff.lines[i].content);
     }
     return 0;
 }
